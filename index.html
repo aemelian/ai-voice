@@ -499,7 +499,7 @@
             'anthropic-dangerous-allow-browser': 'true'
           },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
+            model: 'claude-sonnet-4-5',
             max_tokens: 300,
             system: `You are a warm, playful, patient friend talking to a very young child (toddler/preschooler).
 Rules:
@@ -529,14 +529,15 @@ Rules:
 
       } catch(err) {
         console.error(err);
-        setError('Hmm, something went wrong. Trying again...');
-        conversationHistory.pop(); // remove the unanswered user message
+        const msg = err.message || 'Unknown error';
+        setError('Error: ' + msg);
+        conversationHistory.pop();
         isProcessing = false;
         setTimeout(() => {
           clearError();
           setListening();
           try { recognition.start(); } catch(e) {}
-        }, 3000);
+        }, 6000);
       }
     }
 
