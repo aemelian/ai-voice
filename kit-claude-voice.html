@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Talk to Claude">
+  <title>Talk to Claude</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --sky: #e0f4ff;
+      --cloud: #f7fbff;
+      --sun: #ffd97d;
+      --grass: #a8e6a3;
+      --purple: #c9a6f5;
+      --blue: #89c4f4;
+      --pink: #f5a6c9;
+      --coral: #f5a689;
+      --text-dark: #2d3a4a;
+      --text-mid: #5a7080;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: linear-gradient(160deg, #dff2ff 0%, #e8f7e8 50%, #fff5e8 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Decorative background blobs */
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(60px);
+      opacity: 0.35;
+      pointer-events: none;
+    }
+    .blob-1 { width: 300px; height: 300px; background: var(--purple); top: -80px; right: -60px; }
+    .blob-2 { width: 250px; height: 250px; background: var(--grass); bottom: -60px; left: -40px; }
+    .blob-3 { width: 200px; height: 200px; background: var(--sun); bottom: 80px; right: 20px; }
+
+    /* ── SETUP SCREEN ── */
+    #setup {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+      padding: 48px 32px;
+      text-align: center;
+      max-width: 440px;
+      width: 100%;
+      animation: fadeUp 0.5s ease both;
+    }
+
+    .setup-emoji { font-size: 64px; line-height: 1; }
+
+    .setup-title {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-dark);
+      letter-spacing: -0.5px;
+    }
+
+    .setup-sub {
+      font-size: 16px;
+      color: var(--text-mid);
+      line-height: 1.6;
+      max-width: 300px;
+    }
+
+    .key-input-wrap {
+      width: 100%;
+      position: relative;
+    }
+
+    #apiKeyInput {
+      width: 100%;
+      padding: 16px 20px;
+      border-radius: 18px;
+      border: 2.5px solid #d0e8f5;
+      background: rgba(255,255,255,0.8);
+      color: var(--text-dark);
+      font-family: 'Nunito', monospace;
+      font-size: 15px;
+      font-weight: 600;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      backdrop-filter: blur(10px);
+    }
+
+    #apiKeyInput:focus {
+      border-color: var(--purple);
+      box-shadow: 0 0 0 4px rgba(201,166,245,0.2);
+    }
+
+    #apiKeyInput::placeholder { color: #a0b8c8; font-weight: 400; }
+
+    #startBtn {
+      padding: 18px 48px;
+      border-radius: 100px;
+      border: none;
+      background: linear-gradient(135deg, #c9a6f5, #89c4f4);
+      color: white;
+      font-family: 'Nunito', sans-serif;
+      font-size: 20px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(137,196,244,0.4);
+      transition: transform 0.15s, box-shadow 0.15s;
+      letter-spacing: 0.3px;
+    }
+
+    #startBtn:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(137,196,244,0.5); }
+    #startBtn:active { transform: scale(0.97); }
+
+    #errorMsg {
+      color: #e05c5c;
+      font-size: 14px;
+      font-weight: 600;
+      min-height: 20px;
+    }
+
+    /* ── MAIN SCREEN ── */
+    #main {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 36px;
+      padding: 48px 28px;
+      text-align: center;
+      width: 100%;
+      max-width: 440px;
+    }
+
+    /* ── OWL CONTAINER ── */
+    .orb-container {
+      position: relative;
+      width: 210px;
+      height: 220px;
+    }
+
+    #orb {
+      width: 210px;
+      height: 220px;
+      position: relative;
+      transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      cursor: default;
+    }
+
+    #owlSvg {
+      width: 100%;
+      height: 100%;
+      transition: filter 0.4s;
+    }
+
+    /* ── OWL SVG COLOR STATES ── */
+
+    /* Idle / Listening — purple */
+    #orb.state-idle .ob,
+    #orb.state-listening .ob    { fill: #9b6fe0; }
+    #orb.state-idle .ow,
+    #orb.state-listening .ow    { fill: #7040b8; }
+    #orb.state-idle .of,
+    #orb.state-listening .of    { fill: #c9a6f5; }
+    #orb.state-idle .obe,
+    #orb.state-listening .obe   { fill: #e8d8fc; }
+    #orb.state-idle .oi,
+    #orb.state-listening .oi    { fill: #5c30b0; }
+    #orb.state-idle .obk,
+    #orb.state-listening .obk   { fill: #f5c84a; }
+
+    #orb.state-listening #owlSvg {
+      filter: drop-shadow(0 10px 24px rgba(140,90,220,0.5));
+    }
+    #orb.state-listening { animation: listenPulse 2s ease-in-out infinite; }
+
+    /* Thinking — gold */
+    #orb.state-thinking .ob  { fill: #e89010; }
+    #orb.state-thinking .ow  { fill: #b86808; }
+    #orb.state-thinking .of  { fill: #ffd97d; }
+    #orb.state-thinking .obe { fill: #fff4cc; }
+    #orb.state-thinking .oi  { fill: #904800; }
+    #orb.state-thinking .obk { fill: #e04818; }
+
+    #orb.state-thinking #owlSvg {
+      filter: drop-shadow(0 10px 24px rgba(230,160,30,0.55));
+    }
+    #orb.state-thinking { animation: thinkNod 0.9s ease-in-out infinite; }
+
+    /* Speaking — blue */
+    #orb.state-speaking .ob  { fill: #3a8fd4; }
+    #orb.state-speaking .ow  { fill: #1e68a8; }
+    #orb.state-speaking .of  { fill: #89c4f4; }
+    #orb.state-speaking .obe { fill: #cce8fa; }
+    #orb.state-speaking .oi  { fill: #144e90; }
+    #orb.state-speaking .obk { fill: #f5d030; }
+
+    #orb.state-speaking #owlSvg {
+      filter: drop-shadow(0 10px 24px rgba(58,143,212,0.55));
+    }
+    #orb.state-speaking { animation: speakBounce 0.32s ease-in-out infinite alternate; }
+
+    /* Ripple rings for listening */
+    .ripple {
+      position: absolute;
+      inset: 10px;
+      border-radius: 50%;
+      border: 2.5px solid rgba(140,90,220,0.35);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #orb.state-listening ~ .ripple-1 { animation: rippleOut 2.2s ease-out 0s infinite; }
+    #orb.state-listening ~ .ripple-2 { animation: rippleOut 2.2s ease-out 0.7s infinite; }
+    #orb.state-listening ~ .ripple-3 { animation: rippleOut 2.2s ease-out 1.4s infinite; }
+
+    @keyframes rippleOut {
+      0%   { transform: scale(1);   opacity: 0.55; }
+      100% { transform: scale(2);   opacity: 0; }
+    }
+
+    @keyframes listenPulse {
+      0%, 100% { transform: scale(1); }
+      50%       { transform: scale(1.06); }
+    }
+
+    @keyframes thinkNod {
+      0%, 100% { transform: rotate(-5deg); }
+      50%       { transform: rotate(5deg); }
+    }
+
+    @keyframes speakBounce {
+      from { transform: scale(1) translateY(0); }
+      to   { transform: scale(1.07) translateY(-4px); }
+    }
+
+    /* ── TEXT AREAS ── */
+    #statusLabel {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text-dark);
+      letter-spacing: -0.3px;
+      min-height: 32px;
+      transition: all 0.3s;
+    }
+
+    #transcriptBox {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-mid);
+      max-width: 320px;
+      min-height: 24px;
+      line-height: 1.5;
+      font-style: italic;
+      transition: opacity 0.3s;
+    }
+
+    #responseBox {
+      background: rgba(255,255,255,0.65);
+      backdrop-filter: blur(12px);
+      border-radius: 22px;
+      padding: 22px 26px;
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--text-dark);
+      max-width: 360px;
+      min-height: 80px;
+      line-height: 1.6;
+      border: 2px solid rgba(255,255,255,0.8);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+      transition: opacity 0.4s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    #errorBanner {
+      color: #c0392b;
+      font-size: 14px;
+      font-weight: 700;
+      min-height: 20px;
+      background: rgba(255,200,200,0.5);
+      padding: 8px 16px;
+      border-radius: 12px;
+      display: none;
+    }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+
+  <!-- SETUP -->
+  <div id="setup">
+    <div class="setup-emoji">🌟</div>
+    <div class="setup-title">Talk to Claude</div>
+    <div class="setup-sub">Enter your Anthropic API key below. It stays on your device and is never shared.</div>
+    <div class="key-input-wrap">
+      <input
+        type="password"
+        id="apiKeyInput"
+        placeholder="sk-ant-api03-..."
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="none"
+        spellcheck="false"
+      >
+    </div>
+    <button id="startBtn" onclick="startApp()">Let's go ✨</button>
+    <div id="errorMsg"></div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <div class="orb-container">
+      <div id="orb" class="state-idle">
+        <svg id="owlSvg" viewBox="0 0 200 215" xmlns="http://www.w3.org/2000/svg">
+          <!-- Ear tufts -->
+          <polygon points="68,68 56,22 86,60" class="ob"/>
+          <polygon points="132,68 144,22 114,60" class="ob"/>
+          <!-- Wings (behind body) -->
+          <ellipse cx="40" cy="142" rx="27" ry="54" transform="rotate(-12,40,142)" class="ow"/>
+          <ellipse cx="160" cy="142" rx="27" ry="54" transform="rotate(12,160,142)" class="ow"/>
+          <!-- Main body -->
+          <ellipse cx="100" cy="135" rx="60" ry="66" class="ob"/>
+          <!-- Head -->
+          <circle cx="100" cy="82" r="52" class="ob"/>
+          <!-- Belly -->
+          <ellipse cx="100" cy="148" rx="34" ry="44" class="obe"/>
+          <!-- Face disk -->
+          <ellipse cx="100" cy="86" rx="42" ry="38" class="of"/>
+          <!-- Eye whites -->
+          <circle cx="81" cy="78" r="18" fill="white"/>
+          <circle cx="119" cy="78" r="18" fill="white"/>
+          <!-- Irises -->
+          <circle cx="81" cy="78" r="12" class="oi"/>
+          <circle cx="119" cy="78" r="12" class="oi"/>
+          <!-- Pupils -->
+          <circle cx="81" cy="78" r="6" fill="#111827"/>
+          <circle cx="119" cy="78" r="6" fill="#111827"/>
+          <!-- Eye shine -->
+          <circle cx="77" cy="73" r="3.5" fill="white" opacity="0.9"/>
+          <circle cx="115" cy="73" r="3.5" fill="white" opacity="0.9"/>
+          <!-- Beak -->
+          <polygon points="100,91 91,106 109,106" class="obk"/>
+          <!-- Feet -->
+          <rect x="76" y="196" width="9" height="13" rx="4" class="ow"/>
+          <rect x="66" y="203" width="20" height="6" rx="3" class="ow"/>
+          <rect x="115" y="196" width="9" height="13" rx="4" class="ow"/>
+          <rect x="105" y="203" width="20" height="6" rx="3" class="ow"/>
+        </svg>
+      </div>
+      <div class="ripple ripple-1"></div>
+      <div class="ripple ripple-2"></div>
+      <div class="ripple ripple-3"></div>
+    </div>
+
+    <div id="statusLabel">Ready</div>
+    <div id="transcriptBox"></div>
+    <div id="responseBox">Say something!</div>
+    <div id="errorBanner"></div>
+  </div>
+
+  <script>
+    let apiKey = '';
+    let recognition = null;
+    let isProcessing = false;
+    let conversationHistory = [];
+    let restartTimer = null;
+
+    // ── SETUP ──
+    document.getElementById('apiKeyInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') startApp();
+    });
+
+    function startApp() {
+      const key = document.getElementById('apiKeyInput').value.trim();
+      if (!key.startsWith('sk-ant-')) {
+        document.getElementById('errorMsg').textContent = 'That key doesn\'t look right — it should start with sk-ant-';
+        return;
+      }
+      apiKey = key;
+      document.getElementById('setup').style.display = 'none';
+      const main = document.getElementById('main');
+      main.style.display = 'flex';
+      main.style.animation = 'fadeIn 0.4s ease both';
+      initRecognition();
+    }
+
+    // ── SPEECH RECOGNITION ──
+    function initRecognition() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) {
+        setError('Speech recognition not available. Please use Safari on iPad.');
+        return;
+      }
+
+      recognition = new SR();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        if (!isProcessing) setListening();
+      };
+
+      recognition.onresult = (event) => {
+        if (isProcessing) return;
+        const idx = event.results.length - 1;
+        if (!event.results[idx].isFinal) return;
+        const text = event.results[idx][0].transcript.trim();
+        if (text.length < 2) return;
+        handleSpeech(text);
+      };
+
+      recognition.onend = () => {
+        clearTimeout(restartTimer);
+        if (!isProcessing) {
+          restartTimer = setTimeout(() => {
+            try { recognition.start(); } catch(e) {}
+          }, 350);
+        }
+      };
+
+      recognition.onerror = (e) => {
+        if (e.error === 'no-speech' || e.error === 'aborted') return;
+        if (e.error === 'not-allowed') {
+          setError('Microphone blocked. Check iPad Settings → Safari → Microphone.');
+          return;
+        }
+        clearTimeout(restartTimer);
+        restartTimer = setTimeout(() => {
+          try { recognition.start(); } catch(e) {}
+        }, 1000);
+      };
+
+      try {
+        recognition.start();
+      } catch(e) {
+        setError('Could not start microphone: ' + e.message);
+      }
+    }
+
+    // ── HANDLE SPEECH ──
+    async function handleSpeech(text) {
+      isProcessing = true;
+      clearTimeout(restartTimer);
+      try { recognition.abort(); } catch(e) {}
+
+      setThinking(text);
+
+      conversationHistory.push({ role: 'user', content: text });
+
+      try {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-allow-browser': 'true'
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 300,
+            system: `You are a warm, playful, patient friend talking to a very young child (toddler/preschooler).
+Rules:
+- Keep replies SHORT: 1–3 simple sentences only.
+- Use easy words a 3-year-old understands.
+- Be enthusiastic, kind, and encouraging.
+- If they say something silly or unclear, play along warmly.
+- Never ask more than one question.
+- Sound like a friendly, gentle human — not a robot.`,
+            messages: conversationHistory
+          })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error?.message || `API error ${res.status}`);
+
+        const reply = data.content?.[0]?.text;
+        if (!reply) throw new Error('Empty response from Claude');
+
+        conversationHistory.push({ role: 'assistant', content: reply });
+        if (conversationHistory.length > 20) {
+          conversationHistory = conversationHistory.slice(-16);
+        }
+
+        speak(reply);
+
+      } catch(err) {
+        console.error(err);
+        setError('Hmm, something went wrong. Trying again...');
+        conversationHistory.pop(); // remove the unanswered user message
+        isProcessing = false;
+        setTimeout(() => {
+          clearError();
+          setListening();
+          try { recognition.start(); } catch(e) {}
+        }, 3000);
+      }
+    }
+
+    // ── SPEAK ──
+    function speak(text) {
+      setSpeaking(text);
+      speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.88;
+      utterance.pitch = 1.15;
+      utterance.volume = 1;
+
+      // Pick warmest available voice
+      const voices = speechSynthesis.getVoices();
+      const preferred = [
+        'Samantha', 'Karen', 'Moira', 'Tessa', 'Fiona',
+        'en-US', 'en-GB', 'en-AU'
+      ];
+      for (const pref of preferred) {
+        const v = voices.find(v => v.name.includes(pref) || v.lang.includes(pref));
+        if (v) { utterance.voice = v; break; }
+      }
+
+      utterance.onend = () => {
+        isProcessing = false;
+        setListening();
+        restartTimer = setTimeout(() => {
+          try { recognition.start(); } catch(e) {}
+        }, 500);
+      };
+
+      utterance.onerror = () => {
+        isProcessing = false;
+        setListening();
+        try { recognition.start(); } catch(e) {}
+      };
+
+      // iOS workaround: voices may not be loaded yet
+      const trySpeak = () => {
+        if (speechSynthesis.getVoices().length > 0) {
+          speechSynthesis.speak(utterance);
+        } else {
+          setTimeout(trySpeak, 100);
+        }
+      };
+      trySpeak();
+    }
+
+    function setListening() {
+      setOrbState('state-listening');
+      document.getElementById('statusLabel').textContent = 'Listening...';
+      document.getElementById('transcriptBox').textContent = '';
+      clearError();
+    }
+
+    function setThinking(transcript) {
+      setOrbState('state-thinking');
+      document.getElementById('statusLabel').textContent = 'Thinking...';
+      document.getElementById('transcriptBox').textContent = '"' + transcript + '"';
+      document.getElementById('responseBox').textContent = '';
+    }
+
+    function setSpeaking(response) {
+      setOrbState('state-speaking');
+      document.getElementById('statusLabel').textContent = 'Speaking...';
+      document.getElementById('responseBox').textContent = response;
+    }
+
+    function setOrbState(stateClass) {
+      document.getElementById('orb').className = stateClass;
+    }
+
+    function setError(msg) {
+      const el = document.getElementById('errorBanner');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    function clearError() {
+      const el = document.getElementById('errorBanner');
+      el.style.display = 'none';
+    }
+
+    // Preload voices on iOS (requires a user gesture — startApp counts)
+    window.speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+    speechSynthesis.getVoices();
+  </script>
+</body>
+</html>
