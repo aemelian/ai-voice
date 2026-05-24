@@ -392,16 +392,12 @@
     let conversationHistory = [];
     let restartTimer = null;
 
-    // ── AUTO-LOGIN IF KEY SAVED ──
+    // ── AUTO-START — key lives in Cloudflare, no setup needed ──
     (function() {
-      const saved = localStorage.getItem('kit_claude_key');
-      if (saved && saved.startsWith('sk-ant-')) {
-        apiKey = saved;
-        document.getElementById('setup').style.display = 'none';
-        const main = document.getElementById('main');
-        main.style.display = 'flex';
-        initRecognition();
-      }
+      document.getElementById('setup').style.display = 'none';
+      const main = document.getElementById('main');
+      main.style.display = 'flex';
+      initRecognition();
     })();
 
     // ── SETUP ──
@@ -490,13 +486,10 @@
       conversationHistory.push({ role: 'user', content: text });
 
       try {
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
+        const res = await fetch('https://throbbing-frost-e567.anushka-6ef.workers.dev', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-allow-browser': 'true'
           },
           body: JSON.stringify({
             model: 'claude-sonnet-4-5',
